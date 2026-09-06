@@ -69,6 +69,15 @@ func (c *Client) bringUpLink(ctx context.Context, cfg Config, cancel context.Can
 	c.sessMu.Lock()
 	c.conn, c.controlConn = conn, controlConn
 	c.sessMu.Unlock()
+	// ai-generated: barrier before smux - see tunnelcore/barrier.go.
+	if err := tunnelcore.WriteBarrier(conn); err != nil {
+		_ = conn.Close()
+		if controlConn != nil {
+			_ = controlConn.Close()
+		}
+		return fmt.Errorf("write session barrier: %w", err)
+	}
+	tunnelcore.DrainUntilBarrier(conn, tunnelcore.BarrierTimeout)
 	pair, err := tunnelcore.NewSessionPairWithConns(
 		link, conn, controlConn, tunnelcore.ClientRole,
 	)
@@ -180,7 +189,11 @@ func (c *Client) handleReconnect(ctx context.Context, cfg Config, cancel context
 	tunnelcore.ResetPeer(c.ln)
 	c.sessMu.RLock()
 	if c.pair != nil {
-		_ = c.pair.CloseConns()
+		// ai-generated: Close (not CloseConns): the stale pair's smux
+		// sessions must be closed too - recv loops and keepalive writers
+		// of the old generation must stop before the new conn is
+		// installed, matching the server-side reinstallSession fix.
+		_ = c.pair.Close()
 	} else {
 		if c.conn != nil {
 			_ = c.conn.Close()
@@ -332,6 +345,16 @@ func (c *Client) tryReopenSession(
 	if oldControlConn != nil {
 		_ = oldControlConn.Close()
 	}
+	// ai-generated: barrier before smux - see tunnelcore/barrier.go.
+	if err := tunnelcore.WriteBarrier(conn); err != nil {
+		logger.Warnf("session barrier write failed (attempt %d): %v", attempt, err)
+		_ = conn.Close()
+		if controlConn != nil {
+			_ = controlConn.Close()
+		}
+		return false
+	}
+	tunnelcore.DrainUntilBarrier(conn, tunnelcore.BarrierTimeout)
 	pair, err := tunnelcore.NewSessionPairWithConns(
 		c.ln, conn, controlConn, tunnelcore.ClientRole,
 	)

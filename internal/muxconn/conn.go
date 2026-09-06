@@ -352,6 +352,36 @@ func (c *Conn) Read(p []byte) (int, error) {
 	return n, nil
 }
 
+// NextFrame returns exactly one decrypted frame for pre-smux barrier
+// synchronisation, before any Read consumer attaches. Returns false on
+// timeout or close. Mixing with Read is not supported.
+func (c *Conn) NextFrame(timeout time.Duration) ([]byte, bool) {
+	if timeout <= 0 {
+		bufPtr, ok := c.takeFrame()
+		if !ok {
+			return nil, false
+		}
+		frame := append([]byte(nil), (*bufPtr)...)
+		releaseFrameBuf(bufPtr)
+		return frame, true
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case bufPtr, ok := <-c.in:
+		if !ok {
+			return nil, false
+		}
+		frame := append([]byte(nil), (*bufPtr)...)
+		releaseFrameBuf(bufPtr)
+		return frame, true
+	case <-c.closeCh:
+		return nil, false
+	case <-timer.C:
+		return nil, false
+	}
+}
+
 // takeFrame blocks until a frame is available or the conn is closed.
 // On close it still picks up a frame that raced past Close's drain, so a
 // peer that shuts us down right after a final write doesn't lose data.

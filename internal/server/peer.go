@@ -108,6 +108,29 @@ func (ps *peerSession) attachData(conn *muxconn.Conn, session *smux.Session) boo
 	return true
 }
 
+// attachConn binds the data conn before its smux session exists, so inbound
+// frames queue up while the peer priming goroutine drains stale ones.
+func (ps *peerSession) attachConn(conn *muxconn.Conn) bool {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	if ps.closed || ps.conn != nil {
+		return false
+	}
+	ps.conn = conn
+	return true
+}
+
+// attachSession installs the smux session once the conn has been drained.
+func (ps *peerSession) attachSession(session *smux.Session) bool {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	if ps.closed || ps.session != nil {
+		return false
+	}
+	ps.session = session
+	return true
+}
+
 func (ps *peerSession) dataConn() *muxconn.Conn {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
@@ -327,27 +350,45 @@ func (s *Server) getPeerSession(peerID string) *peerSession {
 		return nil
 	}
 	conn := muxconn.NewPeer(s.peerLn, s.keys, peerID)
-	session, err := tunnelcore.NewSession(conn, tunnelcore.ServerRole, runtime.SmuxConfigFor(s.ln))
-	if err != nil {
-		s.sessMu.Unlock()
-		logger.Warnf("smux server init failed for peer %s: %v", peerID, err)
-		_ = conn.Close()
-		return nil
-	}
 	if peer == nil {
 		_, needsControl := s.ln.(transport.PeerControlPlane)
 		peer = newPeerSession(peerID, needsControl)
 		s.peerSessions[peerID] = peer
 	}
-	if !peer.attachData(conn, session) {
-		_ = session.Close()
+	if !peer.attachConn(conn) {
 		_ = conn.Close()
 		s.sessMu.Unlock()
 		return peer
 	}
 	s.sessMu.Unlock()
-	s.goTracked(func() { s.servePeer(peer) })
+	s.goTracked(func() { s.primePeerSession(peer, conn) })
 	return peer
+}
+
+// primePeerSession drains frames left over from the peer's previous session
+// generation (see tunnelcore/barrier.go), then builds the smux session and
+// serves it. The barrier is echoed only when the peer sent one, so clients
+// that predate the barrier protocol never receive a frame that would poison
+// their smux reader.
+func (s *Server) primePeerSession(peer *peerSession, conn *muxconn.Conn) {
+	if tunnelcore.DrainUntilBarrier(conn, tunnelcore.BarrierTimeout) {
+		if err := tunnelcore.WriteBarrier(conn); err != nil {
+			logger.Warnf("peer %s barrier write failed: %v", peer.peerID, err)
+			s.removePeer(peer, "barrier failed")
+			return
+		}
+	}
+	session, err := tunnelcore.NewSession(conn, tunnelcore.ServerRole, runtime.SmuxConfigFor(s.ln))
+	if err != nil {
+		logger.Warnf("smux server init failed for peer %s: %v", peer.peerID, err)
+		s.removePeer(peer, "smux init failed")
+		return
+	}
+	if !peer.attachSession(session) {
+		_ = session.Close()
+		return
+	}
+	s.servePeer(peer)
 }
 
 func (s *Server) acceptPeerHandshake(ctx context.Context, peer *peerSession) {
