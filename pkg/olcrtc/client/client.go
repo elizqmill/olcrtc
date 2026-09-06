@@ -98,6 +98,7 @@ type Config struct {
 	DeviceIDPath     string
 	Claims           map[string]any
 	OnHealth         HealthFunc
+	RoomPassword     string
 }
 
 type runner func(context.Context, internalclient.Config, func(string)) error
@@ -151,6 +152,7 @@ func toClientConfig(cfg Config) internalclient.Config {
 		},
 		DeviceID: cfg.DeviceID, DeviceIDPath: cfg.DeviceIDPath, Claims: cfg.Claims,
 		OnHealth: internalclient.HealthFunc(cfg.OnHealth),
+		RoomPassword: cfg.RoomPassword,
 	}
 }
 

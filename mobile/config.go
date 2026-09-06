@@ -63,6 +63,7 @@ type runtimeConfig struct {
 	engine        string
 	serviceURL    string
 	engineToken   string
+	roomPassword  string
 	liveness      client.LivenessConfig
 	traffic       client.TrafficConfig
 	vp8           client.VP8Options
@@ -211,6 +212,13 @@ func (r *Runtime) SetProviderToken(token string) {
 	r.mu.Unlock()
 }
 
+// SetRoomPassword sets an optional MUC room password (XEP-0045).
+func (r *Runtime) SetRoomPassword(password string) {
+	r.mu.Lock()
+	r.defaults.roomPassword = password
+	r.mu.Unlock()
+}
+
 // SetDeviceID sets the in-memory device identity used by future runs.
 func (r *Runtime) SetDeviceID(deviceID string) {
 	r.mu.Lock()
@@ -334,6 +342,7 @@ func (cfg runtimeConfig) clientConfig() client.Config {
 		DNSServer: cfg.dnsServer, Resolver: cfg.resolver,
 		TransportOptions: cfg.transportOptions(), Liveness: cfg.liveness, Traffic: cfg.traffic,
 		DeviceID: cfg.deviceID, DeviceIDPath: cfg.deviceIDPath,
+		RoomPassword: cfg.roomPassword,
 	}
 }
 

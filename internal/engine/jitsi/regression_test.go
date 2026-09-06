@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zarazaex69/j"
+	"github.com/elizqmill/j"
 
 	"github.com/openlibrecommunity/olcrtc/internal/engine"
 )

@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/pion/webrtc/v4"
-	"github.com/zarazaex69/j"
+	"github.com/elizqmill/j"
 
 	"github.com/openlibrecommunity/olcrtc/internal/engine"
 	"github.com/openlibrecommunity/olcrtc/internal/logger"
@@ -57,6 +57,7 @@ type Session struct {
 	host       string
 	room       string
 	name       string
+	password   string
 	resolver   *net.Resolver
 	httpClient *http.Client
 
@@ -113,6 +114,10 @@ func New(_ context.Context, cfg engine.Config) (engine.Session, error) {
 	if room == "" {
 		return nil, ErrRoomRequired
 	}
+	var password string
+	if cfg.Extra != nil {
+		password = cfg.Extra["room_password"]
+	}
 	name := sanitiseNick(cfg.Name)
 	if name == "" {
 		name = defaultNick
@@ -123,6 +128,7 @@ func New(_ context.Context, cfg engine.Config) (engine.Session, error) {
 		host:                host,
 		room:                room,
 		name:                name,
+		password:            password,
 		resolver:            cfg.Resolver,
 		httpClient:          protect.NewHTTPClient(cfg.Resolver),
 		onData:              cfg.OnData,
@@ -193,6 +199,7 @@ func (s *Session) Connect(ctx context.Context) error {
 		Host:       s.host,
 		Room:       s.room,
 		Nick:       s.name,
+		Password:   s.password,
 		Debug:      logger.IsVerbose(),
 		HTTPClient: s.httpClient,
 	})

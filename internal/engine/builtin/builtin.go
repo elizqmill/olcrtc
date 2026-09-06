@@ -55,6 +55,8 @@ type Config struct {
 	// provider so it can act as that account instead of running its guest
 	// flow (e.g. a WB Stream account token). Empty uses the guest flow.
 	ProviderToken string
+	// RoomPassword is an optional MUC room password (XEP-0045) for Jitsi rooms.
+	RoomPassword string
 }
 
 // Factory creates an engine session for a given provider.
@@ -124,6 +126,13 @@ func register(name string, provider auth.Provider) {
 		engineName, creds, refresh, err := resolveCredentials(ctx, provider, cfg)
 		if err != nil {
 			return nil, err
+		}
+
+		if creds.Extra == nil {
+			creds.Extra = make(map[string]string)
+		}
+		if cfg.RoomPassword != "" {
+			creds.Extra["room_password"] = cfg.RoomPassword
 		}
 
 		sess, err := engine.New(ctx, engineName, engine.Config{

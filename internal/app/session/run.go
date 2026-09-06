@@ -118,6 +118,7 @@ func runClient(
 		SOCKSPass: cfg.SOCKSPass, TransportOptions: opts, Engine: cfg.Engine,
 		URL: cfg.URL, Token: cfg.Token, ProviderToken: cfg.ProviderToken,
 		Liveness: liveness, Traffic: traffic,
+		RoomPassword: cfg.RoomPassword,
 	})
 	if err != nil {
 		return fmt.Errorf("client: %w", err)

@@ -30,6 +30,7 @@ func (c *Client) bringUpLink(ctx context.Context, cfg Config, cancel context.Can
 		URL: cfg.URL, Token: cfg.Token, ProviderToken: cfg.ProviderToken,
 		ChannelID: cfg.ChannelID, DNSServer: cfg.DNSServer,
 		Options: cfg.TransportOptions, Traffic: cfg.Traffic,
+		RoomPassword: cfg.RoomPassword,
 	}, tunnelcore.LinkRoleConfig{
 		DeviceID: c.deviceID, OnData: c.onData, Resolver: cfg.Resolver,
 		RequireTargetedPeer: true,

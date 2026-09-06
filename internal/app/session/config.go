@@ -157,6 +157,7 @@ type Config struct {
 	TrafficMinDelay       string
 	TrafficMaxDelay       string
 	Amount                int
+	RoomPassword          string
 }
 
 // RegisterDefaults registers built-in providers and transports.

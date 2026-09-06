@@ -109,6 +109,7 @@ type Config struct {
 	DeviceIDPath     string
 	Claims           map[string]any
 	OnHealth         HealthFunc
+	RoomPassword     string
 }
 
 // Run starts the client with the given configuration.

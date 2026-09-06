@@ -218,6 +218,9 @@ type Config struct {
 	// Traffic controls payload-size and pacing shaping applied around the
 	// underlying transport's Send.
 	Traffic TrafficConfig
+
+	// RoomPassword is an optional MUC room password (XEP-0045) for Jitsi rooms.
+	RoomPassword string
 }
 
 // EngineConfig projects the provider-facing part of the transport config onto
@@ -238,6 +241,7 @@ func (c Config) EngineConfig() enginebuiltin.Config {
 		URL:                 c.URL,
 		Token:               c.Token,
 		ProviderToken:       c.ProviderToken,
+		RoomPassword:        c.RoomPassword,
 	}
 }
 

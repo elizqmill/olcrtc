@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zarazaex69/j"
+	"github.com/elizqmill/j"
 
 	"github.com/openlibrecommunity/olcrtc/internal/engine"
 	"github.com/openlibrecommunity/olcrtc/internal/logger"
@@ -68,6 +68,7 @@ func (s *Session) reconnect(ctx context.Context) error {
 		Host:       s.host,
 		Room:       s.room,
 		Nick:       s.name,
+		Password:   s.password,
 		Debug:      logger.IsVerbose(),
 		HTTPClient: s.httpClient,
 	})
@@ -139,6 +140,7 @@ func (s *Session) reconnectFull(ctx context.Context) error {
 		Host:       s.host,
 		Room:       s.room,
 		Nick:       s.name,
+		Password:   s.password,
 		Debug:      logger.IsVerbose(),
 		HTTPClient: s.httpClient,
 	})

@@ -11,7 +11,7 @@ import (
 
 	pioninterceptor "github.com/pion/interceptor"
 	"github.com/pion/webrtc/v4"
-	"github.com/zarazaex69/j"
+	"github.com/elizqmill/j"
 
 	"github.com/openlibrecommunity/olcrtc/internal/engine"
 	"github.com/openlibrecommunity/olcrtc/internal/logger"

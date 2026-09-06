@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/zarazaex69/j"
+	"github.com/elizqmill/j"
 )
 
 func encodeForTest(t *testing.T, data []byte) string {

@@ -19,6 +19,7 @@ type LinkConfig struct {
 	DNSServer     string
 	Options       transport.Options
 	Traffic       transport.TrafficConfig
+	RoomPassword  string
 }
 
 // LinkRoleConfig contains transport fields that differ by tunnel role.
@@ -53,5 +54,6 @@ func BuildTransportConfig(base LinkConfig, role LinkRoleConfig) transport.Config
 		RequireTargetedPeer: role.RequireTargetedPeer,
 		Options:             base.Options,
 		Traffic:             base.Traffic,
+		RoomPassword:        base.RoomPassword,
 	}
 }
