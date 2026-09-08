@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/openlibrecommunity/olcrtc/pkg/olcrtc/client"
+
+	"github.com/openlibrecommunity/olcrtc/pkg/olcrtc/logger"
 )
 
 const (
@@ -118,16 +120,20 @@ func (r *Runtime) runProbe(
 
 	select {
 	case socksAddr := <-ready:
+		logger.Infof("probe ready: socks=%s latency=%v", socksAddr, time.Since(started))
 		return finishProbe(ctx, cancel, done, started, socksAddr, action)
 	case err := <-done:
 		if socksAddr, ok := probeAddress(ready); ok {
+			logger.Infof("probe ready after done: socks=%s latency=%v err=%v", socksAddr, time.Since(started), err)
 			return finishProbe(ctx, cancel, nil, started, socksAddr, action)
 		}
+		logger.Warnf("probe done before ready: err=%v latency=%v", err, time.Since(started))
 		if err != nil {
 			return 0, err
 		}
 		return 0, ErrStoppedBeforeReady
 	case <-ctx.Done():
+		logger.Warnf("probe timeout after %v", time.Since(started))
 		waitProbeDone(done)
 		return 0, ErrReadyTimeout
 	}
