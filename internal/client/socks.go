@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -17,8 +18,10 @@ const (
 	socksAddrIPv4           = 1
 	socksAddrDomain         = 3
 	socksAddrIPv6           = 4
-	socksRepSuccess         = 0
-	socksRepHostUnreachable = 4
+	socksRepSuccess             = 0
+	socksRepHostUnreachable     = 4
+	socksRepCommandNotSupported = 7
+	socksRepAddressNotSupported = 8
 )
 
 const (
@@ -86,6 +89,10 @@ func (c *Client) handleSocks5(ctx context.Context, conn net.Conn) {
 	}
 	targetAddr, targetPort, err := c.socks5Request(conn)
 	if err != nil {
+		var replyErr *socksReplyError
+		if errors.As(err, &replyErr) {
+			_, _ = conn.Write(socks5Reply(replyErr.rep, targetAddr))
+		}
 		return
 	}
 	_ = conn.SetDeadline(time.Time{})
@@ -175,7 +182,11 @@ func (c *Client) socks5Request(conn net.Conn) (string, int, error) {
 		return "", 0, fmt.Errorf("read socks5 request: %w", err)
 	}
 	if header[1] != 1 {
-		return "", 0, fmt.Errorf("%w: %d", ErrUnsupportedSOCKSCommand, header[1])
+		logger.Warnf("SOCKS5 unsupported command %d, sending error reply", header[1])
+		return "", 0, &socksReplyError{
+			err: fmt.Errorf("%w: %d", ErrUnsupportedSOCKSCommand, header[1]),
+			rep: socksRepCommandNotSupported,
+		}
 	}
 	addr, err := c.readSocks5Addr(conn, header[3])
 	if err != nil {
@@ -208,7 +219,10 @@ func (c *Client) readSocks5Addr(conn net.Conn, addrType byte) (string, error) {
 		}
 		return string(buffer), nil
 	default:
-		return "", fmt.Errorf("%w: %d", ErrUnsupportedAddressType, addrType)
+		return "", &socksReplyError{
+			err: fmt.Errorf("%w: %d", ErrUnsupportedAddressType, addrType),
+			rep: socksRepAddressNotSupported,
+		}
 	}
 }
 

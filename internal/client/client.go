@@ -38,6 +38,18 @@ var (
 	ErrEmptySOCKSDomain        = errors.New("empty socks5 domain")
 )
 
+// socksReplyError wraps an error with a SOCKS5 reply code so the handler can
+// send a proper error response instead of silently closing the connection.
+// This is critical for compatibility with proxies like AdGuard that interpret
+// a dropped connection as "proxy dead" and may stop forwarding traffic.
+type socksReplyError struct {
+	err error
+	rep byte
+}
+
+func (e *socksReplyError) Error() string { return e.err.Error() }
+func (e *socksReplyError) Unwrap() error { return e.err }
+
 const (
 	reconnectProvider = "provider"
 	reconnectLiveness = "liveness"
