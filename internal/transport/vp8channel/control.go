@@ -41,6 +41,15 @@ func (p *streamTransport) ControlCanSend() bool {
 // ControlPeerCanSend reports whether the per-peer control KCP for peerID is
 // ready. It never creates a session: an unknown peer is simply not ready.
 // Implements transport.PeerControlPlane.
+//
+// Unlike ControlCanSend, this only requires the transport to be open and the
+// per-peer control KCP to exist. It does NOT gate on SubscriberCanSend:
+// on the server side the subscriber PC may never be ready (the server
+// publishes but does not subscribe), yet control frames (handshake
+// response, liveness) must flow immediately so the client can complete its
+// handshake.  Blocking on SubscriberCanSend there creates a deadlock where
+// the server waits for the client's subscriber PC, which in turn waits for
+// the server's handshake response.
 func (p *streamTransport) ControlPeerCanSend(peerID string) bool {
 	epoch, err := parsePeerID(peerID)
 	if err != nil {
@@ -52,7 +61,14 @@ func (p *streamTransport) ControlPeerCanSend(peerID string) bool {
 		return false
 	}
 
-	return p.ready(sess.controlRuntime(), p.stream.SubscriberCanSend)
+	return p.controlReady(sess.controlRuntime())
+}
+
+// controlReady is like ready but without the provider-readiness gate. Control
+// frames must be deliverable as soon as the transport is open and the KCP
+// session exists, regardless of publisher/subscriber PC state.
+func (p *streamTransport) controlReady(rt *kcpRuntime) bool {
+	return !p.closed.Load() && rt != nil
 }
 
 // deliverControlData dispatches a control message received on the singleton
