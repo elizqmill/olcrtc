@@ -3,6 +3,7 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -13,6 +14,33 @@ import (
 
 // verboseEnabled controls whether verbose and debug logging is enabled.
 var verboseEnabled atomic.Bool //nolint:gochecknoglobals // package-level state intentional
+
+// logCallback is an optional callback invoked for every log line.
+// When set, log output is forwarded to both stderr and the callback.
+var logCallback atomic.Pointer[func(string)] //nolint:gochecknoglobals // package-level state
+
+type callbackWriter struct{}
+
+func (callbackWriter) Write(p []byte) (int, error) {
+	if fn := logCallback.Load(); fn != nil && *fn != nil {
+		(*fn)(strings.TrimRight(string(p), "\n"))
+	}
+	return len(p), nil
+}
+
+func init() {
+	log.SetOutput(io.MultiWriter(os.Stderr, callbackWriter{}))
+}
+
+// SetLogCallback registers a callback that receives every log line.
+// Pass nil to clear the callback.
+func SetLogCallback(cb func(string)) {
+	if cb == nil {
+		logCallback.Store(nil)
+	} else {
+		logCallback.Store(&cb)
+	}
+}
 
 // DisableNoisyPionLogs suppresses Pion scopes that are known to emit
 // high-volume non-actionable background noise.
